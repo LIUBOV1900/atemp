@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Поймай правильный ответ — Python</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Verdana, sans-serif;
+      background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+      color: #111827;
+      overscroll-behavior: none;
+    }
+
+    .wrapper { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+    h1 { margin: 0 0 8px; font-size: 28px; text-align: center; }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: #374151;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .targets, .difficulty-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .target-btn, .diff-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #ffffff;
+      color: #111827;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.10);
+      transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease;
+    }
+
+    .target-btn:hover, .diff-btn:hover { transform: translateY(-1px); }
+    .target-btn.active { background: #2563eb; color: #ffffff; }
+
+    .diff-btn.active[data-diff="easy"] { background: #22c55e; color: #ffffff; }
+    .diff-btn.active[data-diff="medium"] { background: #3b82f6; color: #ffffff; }
+    .diff-btn.active[data-diff="hard"] { background: #ef4444; color: #ffffff; }
+
+    .hud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-weight: 800;
+      font-size: 16px;
+      margin-bottom: 12px;
+      justify-content: center;
+    }
+
+    .hud span { color: #2563eb; }
+
+    #game {
+      position: relative;
+      width: 100%;
+      height: 540px;
+      overflow: hidden;
+      border: 5px solid #1d4ed8;
+      border-radius: 20px;
+      background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .falling {
+      position: absolute;
+      top: 0;
+      left: 0;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 3px solid #93c5fd;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+      font-weight: 800;
+      font-size: 22px;
+      line-height: 1.2;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: min(320px, 80vw);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .falling.code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 18px;
+      line-height: 1.35;
+      background: #111827;
+      color: #f9fafb;
+      border-color: #4b5563;
+      font-weight: 700;
+    }
+
+    #basket {
+      position: absolute;
+      bottom: 14px;
+      left: 0;
+      width: 150px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 34px;
+      background: linear-gradient(180deg, #fbbf24, #f59e0b);
+      border: 4px solid #b45309;
+      border-radius: 18px;
+      box-shadow: 0 10px 18px rgba(0, 0, 0, 0.18);
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .popup {
+      position: absolute;
+      transform: translateX(-50%);
+      font-size: 22px;
+      font-weight: 900;
+      z-index: 6;
+      pointer-events: none;
+      animation: floatUp 0.7s ease-out forwards;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    .popup.good { color: #16a34a; }
+    .popup.bad { color: #dc2626; }
+
+    @keyframes floatUp {
+      from { opacity: 1; transform: translate(-50%, 0); }
+      to { opacity: 0; transform: translate(-50%, -36px); }
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: rgba(17, 24, 39, 0.55);
+      z-index: 10;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+
+    .overlay .box {
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 28px;
+      max-width: 560px;
+      width: 100%;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .overlay h2 { margin: 0 0 12px; font-size: 30px; }
+    .overlay p { margin: 0 0 18px; line-height: 1.45; color: #374151; }
+
+    .rules-list {
+      text-align: left;
+      margin: 0 0 20px;
+      color: #374151;
+      line-height: 1.5;
+      font-size: 15px;
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .rules-list ul { margin: 8px 0 0; padding-left: 20px; }
+    .rules-list li { margin-bottom: 8px; }
+
+    .big-btn {
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+      transition: background 0.15s ease;
+    }
+
+    .big-btn:hover { background: #1d4ed8; }
+    .hide { display: none !important; }
+
+    .small-note {
+      margin-top: 12px;
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      h1 { font-size: 23px; }
+      #game { height: 68vh; min-height: 420px; }
+      .falling { font-size: 18px; padding: 8px 10px; max-width: min(240px, 72vw); }
+      .falling.code { font-size: 15px; }
+      #basket { width: 130px; height: 46px; font-size: 28px; }
+      .overlay .box { padding: 20px; }
+      .rules-list { font-size: 14px; padding: 12px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <h1>🐍 Поймай правильный ответ</h1>
+
+    <p class="subtitle">
+      Выбери цель и сложность. Двигай корзину мышью, пальцем или стрелками ← →.
+    </p>
+
+    <div class="panel">
+      <div class="targets" id="targetButtons">
+        <button class="target-btn active" data-target="str">Строки</button>
+        <button class="target-btn" data-target="int">Целые числа</button>
+        <button class="target-btn" data-target="float">Дробные числа</button>
+        <button class="target-btn" data-target="bool">True / False</button>
+        <button class="target-btn" data-target="list">Списки</button>
+        <button class="target-btn" data-target="code_ok">Код без ошибки</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="difficulty-selector" id="difficultyButtons">
+        <button class="diff-btn active" data-diff="easy">🐢 Легко (100 очков)</button>
+        <button class="diff-btn" data-diff="medium">🐇 Средне (150 очков)</button>
+        <button class="diff-btn" data-diff="hard">🚀 Сложно (200 очков)</button>
+      </div>
+    </div>
+
+    <div class="panel hud">
+      <div>Цель: <span id="targetLabel">строки</span></div>
+      <div>Очки: <span id="score">0</span> / <span id="winScoreDisplay">100</span></div>
+      <div>Жизни: <span id="lives">❤️❤️❤️</span></div>
+      <div>Комбо: <span id="combo">0</span></div>
+    </div>
+
+    <div id="game">
+      <div id="basket">🧺</div>
+
+      <div id="startOverlay" class="overlay">
+        <div class="box">
+          <h2>📜 Правила игры</h2>
+          <div class="rules-list">
+            <ul>
+              <li>Выбери <strong>что ловить</strong> (тип данных или правильный код) и <strong>скорость падения</strong>.</li>
+              <li>✅ <strong>Победа:</strong> Набери нужное количество очков (100, 150 или 200).</li>
+              <li>❌ <strong>Поражение:</strong> Ты теряешь жизнь (❤️) за поимку <em>неправильного</em> объекта. При 0 жизнях игра заканчивается.</li>
+              <li>⚠️ Если нужный объект упал мимо корзины, <strong>комбо сбрасывается</strong>, но жизнь не теряется.</li>
+              <li>💡 В режиме «Код без ошибки» падают и правильные коды, и коды с ошибками — лови только правильные!</li>
+              <li>🐌 <strong>Коды падают медленнее</strong> обычных значений.</li>
+              <li>🛡️ Объекты <strong>не перекрываются</strong> — между ними всегда есть безопасное расстояние.</li>
+            </ul>
+          </div>
+          <button id="startBtn" class="big-btn">Начать игру</button>
+        </div>
+      </div>
+
+      <div id="endOverlay" class="overlay hide">
+        <div class="box">
+          <h2 id="endTitle">Игра окончена</h2>
+          <p id="endText"></p>
+          <button id="restartBtn" class="big-btn">Сыграть ещё раз</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="small-note">
+      Подсказка: коды падают медленнее, чем числа и строки — успевай прочитать и понять, есть ли ошибка!
+    </div>
+  </div>
+
+  <script>
+    const ITEMS = [
+      { type: "str", text: '"кот"' }, { type: "str", text: '"Python"' },
+      { type: "str", text: '"123"' }, { type: "str", text: '"привет"' },
+      { type: "str", text: '"5"' }, { type: "str", text: '"True"' },
+      { type: "str", text: '"[1, 2]"' }, { type: "str", text: '"ошибка"' },
+      { type: "int", text: "5" }, { type: "int", text: "0" },
+      { type: "int", text: "-7" }, { type: "int", text: "42" },
+      { type: "int", text: "100" }, { type: "int", text: "-1" },
+      { type: "float", text: "3.14" }, { type: "float", text: "0.5" },
+      { type: "float", text: "-2.5" }, { type: "float", text: "10.0" },
+      { type: "float", text: "1.25" },
+      { type: "bool", text: "True" }, { type: "bool", text: "False" },
+      { type: "list", text: "[1, 2, 3]" },
+      { type: "list", text: '["яблоко", "груша"]' },
+      { type: "list", text: "[]" }, { type: "list", text: "[True, False]" },
+      { type: "list", text: '["a", 5]' }, { type: "list", text: "[10, 20]" },
+      { type: "code_ok", text: 'print("Привет")' },
+      { type: "code_ok", text: "print(42)" },
+      { type: "code_ok", text: 'name = input("Имя: ")' },
+      { type: "code_ok", text: 'print(name)' },
+      { type: "code_ok", text: 'age = input("Возраст: ")' },
+      { type: "code_ok", text: 'print("Тебе", age, "лет")' },
+      { type: "code_ok", text: 'print("Python" + " крутой")' },
+      { type: "code_ok", text: "input()" },
+      { type: "code_ok", text: 'print("Результат:", 10 + 5)' },
+      { type: "code_ok", text: 'x = input("Ввод: ")' },
+      { type: "code_err", text: 'print("Привет"' },
+      { type: "code_err", text: "print(Привет)" },
+      { type: "code_err", text: 'Print("Кот")' },
+      { type: "code_err", text: 'input("Введи число)' },
+      { type: "code_err", text: 'name = input "Как дела?"' },
+      { type: "code_err", text: 'print "Привет"' },
+      { type: "code_err", text: 'input("Вопрос" ))' },
+      { type: "code_err", text: 'print(, "ошибка")' },
+      { type: "code_err", text: 'print("Результат: " +)' },
+      { type: "code_err", text: 'x = input("Ввод: "' }
+    ];
+
+    const TARGET_NAMES = {
+      str: "строки", int: "целые числа", float: "дробные числа",
+      bool: "True / False", list: "списки", code_ok: "код без ошибки"
+    };
+
+    const TARGETS = Object.keys(TARGET_NAMES);
+
+    const DIFFICULTY_CONFIG = {
+      easy:   { speed: 75,  spawnDelay: 1700, winScore: 100 },
+      medium: { speed: 105, spawnDelay: 1350, winScore: 150 },
+      hard:   { speed: 150, spawnDelay: 1000, winScore: 200 }
+    };
+
+    const CODE_SPEED_MULTIPLIER = 0.4;
+
+    const MIN_HORIZONTAL_GAP = 140;
+    const MIN_VERTICAL_GAP = 120;
+    const MAX_SPAWN_ATTEMPTS = 8;
+    const MAX_OBJECTS_ON_SCREEN = 6;
+
+    let target = "str";
+    let difficulty = "medium";
+    let score = 0;
+    let lives = 3;
+    let combo = 0;
+    let winScore = 150;
+    let running = false;
+
+    let objects = [];
+    let spawnTimer = null;
+    let animationId = null;
+    let lastTime = 0;
+    let speed = 105;
+    let spawnDelay = 1350;
+
+    let basketX = 0;
+    let useKeyboard = false;
+    let keyboardSpeed = 20;
+
+    const game = document.getElementById("game");
+    const basket = document.getElementById("basket");
+    const scoreEl = document.getElementById("score");
+    const winScoreDisplay = document.getElementById("winScoreDisplay");
+    const livesEl = document.getElementById("lives");
+    const comboEl = document.getElementById("combo");
+    const targetLabel = document.getElementById("targetLabel");
+    const startOverlay = document.getElementById("startOverlay");
+    const endOverlay = document.getElementById("endOverlay");
+    const endTitle = document.getElementById("endTitle");
+    const endText = document.getElementById("endText");
+    const startBtn = document.getElementById("startBtn");
+    const restartBtn = document.getElementById("restartBtn");
+    const targetButtons = document.querySelectorAll(".target-btn");
+    const difficultyButtons = document.querySelectorAll(".diff-btn");
+
+    function setTarget(newTarget) {
+      target = newTarget;
+      targetLabel.textContent = TARGET_NAMES[target];
+      targetButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.target === target));
+    }
+
+    targetButtons.forEach(btn => {
+      btn.addEventListener("click", () => setTarget(btn.dataset.target));
+    });
+
+    difficultyButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        difficulty = btn.dataset.diff;
+        difficultyButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        winScoreDisplay.textContent = DIFFICULTY_CONFIG[difficulty].winScore;
+      });
+    });
+
+    function updateHud() {
+      scoreEl.textContent = score;
+      winScoreDisplay.textContent = winScore;
+      comboEl.textContent = combo;
+      livesEl.textContent = lives > 0 ? "❤️".repeat(lives) : "💔";
+    }
+
+    function randomItem() {
+      let type;
+      if (target === "code_ok") {
+        type = Math.random() < 0.45 ? "code_ok" : getRandomNonTargetType();
+      } else {
+        type = Math.random() < 0.45 ? target : getRandomNonTargetType();
+      }
+      const pool = ITEMS.filter(item => item.type === type);
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function getRandomNonTargetType() {
+      const allTypes = ["str", "int", "float", "bool", "list", "code_ok", "code_err"];
+      const nonTargetTypes = allTypes.filter(t => t !== target);
+      return nonTargetTypes[Math.floor(Math.random() * nonTargetTypes.length)];
+    }
+
+    function isPositionSafe(x, y, w, h) {
+      for (const obj of objects) {
+        const dx = Math.abs((x + w / 2) - (obj.x + obj.w / 2));
+        const dy = Math.abs(y - obj.y);
+        if (dx < MIN_HORIZONTAL_GAP && dy < MIN_VERTICAL_GAP) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function findSafeSpawnPosition(objWidth, objHeight) {
+      // ВАЖНО: используем реальные размеры игрового поля
+      const gameWidth = game.clientWidth;
+      // Оставляем небольшой отступ от краёв, чтобы элемент был полностью виден
+      const padding = 4;
+      const maxX = Math.max(0, gameWidth - objWidth - padding);
+
+      for (let attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+        const x = Math.random() * maxX;
+        const y = -objHeight - 12;
+        if (isPositionSafe(x, y, objWidth, objHeight)) {
+          return x;
+        }
+      }
+      return Math.random() * maxX;
+    }
+
+    function scheduleSpawn() {
+      clearTimeout(spawnTimer);
+      if (!running) return;
+      
+      if (objects.length >= MAX_OBJECTS_ON_SCREEN) {
+        spawnTimer = setTimeout(scheduleSpawn, 200);
+        return;
+      }
+      
+      const delay = Math.max(550, spawnDelay + Math.random() * 300);
+      spawnTimer = setTimeout(spawnObject, delay);
+    }
+
+    function spawnObject() {
+      if (!running) return;
+      
+      if (objects.length >= MAX_OBJECTS_ON_SCREEN) {
+        scheduleSpawn();
+        return;
+      }
+      
+      const item = randomItem();
+      const el = document.createElement("div");
+      el.className = "falling" + (item.type.startsWith("code") ? " code" : "");
+      el.textContent = item.text;
+
+      // СНАЧАЛА добавляем в DOM, чтобы браузер рассчитал реальные размеры
+      el.style.left = "-9999px";
+      el.style.top = "-9999px";
+      game.appendChild(el);
+
+      // ТЕПЕРЬ измеряем реальные размеры элемента
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+
+      // Находим безопасную позицию с учётом реальных размеров
+      const x = findSafeSpawnPosition(w, h);
+      const y = -h - 12;
+
+      // Устанавливаем финальную позицию
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+
+      const isCode = item.type === "code_ok" || item.type === "code_err";
+      const objSpeed = isCode
+        ? speed * CODE_SPEED_MULTIPLIER + Math.random() * 15
+        : speed + Math.random() * 40;
+
+      objects.push({ el, type: item.type, x, y, w, h, speed: objSpeed });
+      scheduleSpawn();
+    }
+
+    function removeObject(index) {
+      objects[index].el.remove();
+      objects.splice(index, 1);
+    }
+
+    function showPopup(text, good) {
+      const popup = document.createElement("div");
+      popup.className = "popup " + (good ? "good" : "bad");
+      popup.textContent = text;
+      popup.style.left = (basketX + basket.offsetWidth / 2) + "px";
+      popup.style.top = (basket.offsetTop - 22) + "px";
+      game.appendChild(popup);
+      setTimeout(() => popup.remove(), 700);
+    }
+
+    function handleCatch(obj) {
+      if (obj.type === target) {
+        combo++;
+        const bonus = Math.min(combo - 1, 10);
+        const points = 10 + bonus;
+        score += points;
+
+        speed = Math.min(200, speed + 2);
+        spawnDelay = Math.max(600, spawnDelay - 8);
+
+        showPopup("+" + points, true);
+        updateHud();
+
+        if (score >= winScore) {
+          winGame();
+          return true;
+        }
+        return false;
+      } else {
+        lives--;
+        combo = 0;
+        showPopup("Не то! −1 ❤", false);
+        updateHud();
+
+        if (lives <= 0) {
+          endGame();
+          return true;
+        }
+        return false;
+      }
+    }
+
+    function updateBasketPosition() {
+      if (useKeyboard) {
+        if (keysPressed["ArrowLeft"]) {
+          basketX -= keyboardSpeed;
+        }
+        if (keysPressed["ArrowRight"]) {
+          basketX += keyboardSpeed;
+        }
+      }
+
+      const maxX = game.clientWidth - basket.offsetWidth;
+      basketX = Math.max(0, Math.min(maxX, basketX));
+      basket.style.left = basketX + "px";
+    }
+
+    function update(timestamp) {
+      if (!running) return;
+      if (!lastTime) lastTime = timestamp;
+      const dt = (timestamp - lastTime) / 1000;
+      lastTime = timestamp;
+
+      updateBasketPosition();
+
+      const basketY = basket.offsetTop;
+      const basketW = basket.offsetWidth;
+      const basketH = basket.offsetHeight;
+
+      for (let i = objects.length - 1; i >= 0; i--) {
+        const obj = objects[i];
+        obj.y += obj.speed * dt;
+        obj.el.style.top = obj.y + "px";
+
+        const objBottom = obj.y + obj.h;
+        const objRight = obj.x + obj.w;
+        const basketTop = basketY;
+        const basketBottom = basketY + basketH;
+        const basketRight = basketX + basketW;
+
+        const horizontalHit = obj.x < basketRight && objRight > basketX;
+        const verticalHit = objBottom >= basketTop && obj.y <= basketBottom;
+
+        if (horizontalHit && verticalHit) {
+          if (handleCatch(obj)) return;
+          removeObject(i);
+          continue;
+        }
+
+        if (obj.y > game.clientHeight + 50) {
+          if (obj.type === target) {
+            combo = 0;
+            updateHud();
+          }
+          removeObject(i);
+        }
+      }
+
+      if (running) {
+        animationId = requestAnimationFrame(update);
+      }
+    }
+
+    function setBasketFromClientX(clientX) {
+      const rect = game.getBoundingClientRect();
+      basketX = clientX - rect.left - basket.offsetWidth / 2;
+      useKeyboard = false;
+    }
+
+    window.addEventListener("mousemove", (e) => {
+      if (!running) return;
+      setBasketFromClientX(e.clientX);
+    });
+
+    window.addEventListener("mousedown", (e) => {
+      if (!running) return;
+      setBasketFromClientX(e.clientX);
+    });
+
+    window.addEventListener("touchstart", (e) => {
+      if (!running) return;
+      if (e.touches.length > 0) {
+        setBasketFromClientX(e.touches[0].clientX);
+      }
+    }, { passive: true });
+
+    window.addEventListener("touchmove", (e) => {
+      if (!running) return;
+      if (e.touches.length > 0) {
+        setBasketFromClientX(e.touches[0].clientX);
+      }
+    }, { passive: true });
+
+    const keysPressed = {};
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        keysPressed[e.key] = true;
+        useKeyboard = true;
+      }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        keysPressed[e.key] = false;
+      }
+    });
+
+    function startGame() {
+      score = 0;
+      lives = 3;
+      combo = 0;
+
+      const config = DIFFICULTY_CONFIG[difficulty];
+      speed = config.speed;
+      spawnDelay = config.spawnDelay;
+      winScore = config.winScore;
+      lastTime = 0;
+
+      objects.forEach(obj => obj.el.remove());
+      objects = [];
+
+      startOverlay.classList.add("hide");
+      endOverlay.classList.add("hide");
+
+      const startX = Math.max(0, (game.clientWidth - basket.offsetWidth) / 2);
+      basketX = startX;
+      basket.style.left = startX + "px";
+
+      updateHud();
+      running = true;
+
+      clearTimeout(spawnTimer);
+      cancelAnimationFrame(animationId);
+
+      scheduleSpawn();
+      animationId = requestAnimationFrame(update);
+    }
+
+    function winGame() {
+      running = false;
+      clearTimeout(spawnTimer);
+      cancelAnimationFrame(animationId);
+      objects.forEach(obj => obj.el.remove());
+      objects = [];
+
+      const diffName = difficulty === "easy" ? "Легко" : difficulty === "medium" ? "Средне" : "Сложно";
+      endTitle.textContent = "🎉 Победа! 🎉";
+      endTitle.style.color = "#16a34a";
+      endText.textContent = `Отличная работа! Ты набрал ${score} очков, ловя ${TARGET_NAMES[target]} на сложности «${diffName}».`;
+      endOverlay.classList.remove("hide");
+    }
+
+    function endGame() {
+      running = false;
+      clearTimeout(spawnTimer);
+      cancelAnimationFrame(animationId);
+      objects.forEach(obj => obj.el.remove());
+      objects = [];
+
+      endTitle.textContent = "Игра окончена";
+      endTitle.style.color = "#dc2626";
+      endText.textContent = `Ты потерял все жизни. Финальный счёт: ${score} из ${winScore} очков. Ты ловил: ${TARGET_NAMES[target]}. Попробуй ещё раз!`;
+      endOverlay.classList.remove("hide");
+    }
+
+    startBtn.addEventListener("click", startGame);
+    restartBtn.addEventListener("click", startGame);
+
+    setTarget("str");
+    winScoreDisplay.textContent = DIFFICULTY_CONFIG[difficulty].winScore;
+    updateHud();
+  </script>
+</body>
+</html>
